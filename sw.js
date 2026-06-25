@@ -1,4 +1,4 @@
-const CACHE = "stoicien-v1";
+const CACHE = "stoicien-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -31,20 +31,40 @@ self.addEventListener("fetch", (e) => {
   // Ne jamais mettre en cache les appels à l'API Anthropic.
   if (url.hostname.includes("api.anthropic.com")) return;
 
-  // App shell + même origine : cache d'abord, réseau ensuite.
   if (url.origin === self.location.origin) {
+    const isDoc =
+      request.mode === "navigate" ||
+      url.pathname.endsWith("/") ||
+      url.pathname.endsWith(".html");
+
+    // Page / navigation : RÉSEAU D'ABORD → les mises à jour s'affichent tout de suite.
+    if (isDoc) {
+      e.respondWith(
+        fetch(request)
+          .then((res) => {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+            return res;
+          })
+          .catch(() =>
+            caches.match(request).then((hit) => hit || caches.match("./index.html"))
+          )
+      );
+      return;
+    }
+
+    // Autres ressources même origine : cache d'abord, rafraîchi en arrière-plan.
     e.respondWith(
-      caches.match(request).then(
-        (hit) =>
-          hit ||
-          fetch(request)
-            .then((res) => {
-              const copy = res.clone();
-              caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
-              return res;
-            })
-            .catch(() => caches.match("./index.html"))
-      )
+      caches.match(request).then((hit) => {
+        const net = fetch(request)
+          .then((res) => {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+            return res;
+          })
+          .catch(() => hit);
+        return hit || net;
+      })
     );
     return;
   }
