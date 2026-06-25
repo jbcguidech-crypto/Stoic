@@ -134,6 +134,16 @@ body{
 .author-line b{color:var(--marble);}
 
 .install-card{display:flex; align-items:center; gap:14px; margin:22px 0 0; padding:16px 18px; border-radius:14px; background:var(--brass-soft); border:1px solid var(--brass-dim);}
+#installBanner{display:none;}
+#installBanner.show{display:block;}
+.banner{display:flex; align-items:center; gap:12px; padding:12px 16px calc(12px); background:var(--brass); color:var(--ink);}
+.banner-icon{flex:0 0 auto; width:34px; height:34px; border-radius:8px; overflow:hidden; display:flex; background:var(--ink);}
+.banner-icon img{width:100%; height:100%; object-fit:cover;}
+.banner-text{flex:1; min-width:0;}
+.banner-title{font-family:'Fraunces',serif; font-weight:600; font-size:15px; line-height:1.15;}
+.banner-sub{font-size:12px; opacity:.8; margin-top:1px;}
+.banner-go{flex:0 0 auto; background:var(--ink); color:var(--brass); border:none; border-radius:8px; padding:9px 16px; font-family:'Fraunces',serif; font-weight:600; font-size:14px; cursor:pointer;}
+.banner-x{flex:0 0 auto; background:none; border:none; color:var(--ink); opacity:.6; font-size:22px; line-height:1; cursor:pointer; padding:2px 4px;}
 .install-text{display:flex; flex-direction:column; flex:1; min-width:0;}
 .install-title{font-family:'Fraunces',serif; font-size:16px; font-weight:500; color:var(--marble);}
 .install-sub{font-size:12px; color:var(--muted); margin-top:3px; line-height:1.4;}
@@ -163,6 +173,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible{outline:2px so
 </head>
 <body>
 <div id="app">
+  <div id="installBanner"></div>
   <main id="main"></main>
   <nav id="nav" role="tablist" aria-label="Navigation"></nav>
 </div>
@@ -363,25 +374,6 @@ function pageToday(){
       <p class="prem-body">${esc(PREMEDITATIO.body)}</p>
       <button class="prem-btn" data-toggle="premeditatio">${ts.premeditatio?"✓ Pratiqué aujourd'hui":"Marquer comme pratiqué"}</button>
     </div>
-    ${installUI()}
-  </div>`;
-}
-
-function isStandalone(){
-  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
-}
-function isIOS(){
-  const ua = navigator.userAgent || "";
-  return /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-function installUI(){
-  if(isStandalone()) return ""; // déjà installée : rien à proposer
-  return `<div class="install-card">
-    <div class="install-text">
-      <span class="install-title">Installer le compagnon</span>
-      <span class="install-sub">Plein écran, hors-ligne, depuis ton écran d'accueil.</span>
-    </div>
-    <button class="install-btn" data-act-install="go">Installer</button>
   </div>`;
 }
 
@@ -458,9 +450,6 @@ function bindPage(){
   main.querySelectorAll("[data-toggle]").forEach(el=>{
     el.addEventListener("click",()=>toggle(el.getAttribute("data-toggle")));
   });
-  // install
-  const icard=main.querySelector("[data-act-install]");
-  if(icard) icard.addEventListener("click", doInstall);
   // thème
   const tg=main.querySelector("[data-act-theme]");
   if(tg) tg.addEventListener("click", toggleTheme);
@@ -538,44 +527,43 @@ function renderNav(){
 
 /* ----------------------------- Install + Service worker ----------------------------- */
 let deferredPrompt=null;
-window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredPrompt=e; });
-window.addEventListener("appinstalled", ()=>{ deferredPrompt=null; closeInstallHelp(); if(state.tab==="today") renderMain(); });
+let bannerDismissed=false;
 
-async function doInstall(){
-  if(deferredPrompt){
-    deferredPrompt.prompt();
-    try{ await deferredPrompt.userChoice; }catch(e){}
-    deferredPrompt=null;
-    if(state.tab==="today") renderMain();
-    return;
-  }
-  showInstallHelp(); // iOS et navigateurs sans invite native
+function isStandalone(){
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
 }
 
-function closeInstallHelp(){ const m=document.getElementById("installModal"); if(m) m.remove(); }
-function showInstallHelp(){
-  closeInstallHelp();
-  const ios=isIOS();
-  const shareIcon='<span class="ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span>';
-  const menuIcon='<span class="ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></span>';
-  const steps = ios
-    ? [`Touche le bouton Partager ${shareIcon} en bas de Safari.`,
-       `Fais défiler, puis choisis « Sur l'écran d'accueil ».`,
-       `Confirme avec « Ajouter ». L'icône parchemin apparaît sur ton écran.`]
-    : [`Ouvre le menu ${menuIcon} de ton navigateur.`,
-       `Choisis « Installer l'application » ou « Ajouter à l'écran d'accueil ».`,
-       `Confirme. L'app s'ouvrira ensuite en plein écran.`];
-  const back=document.createElement("div");
-  back.id="installModal"; back.className="modal-back";
-  back.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-label="Installer l'application">
-    <h3>Installer l'app</h3>
-    <p class="lead">${ios?"Sur iPhone, l'installation se fait en deux gestes depuis Safari.":"En quelques secondes, depuis ton navigateur."}</p>
-    ${steps.map((s,i)=>`<div class="modal-step"><span class="modal-num">${i+1}</span><span class="txt">${s}</span></div>`).join("")}
-    <button class="modal-close" data-act-close="1">Compris</button>
+/* Le bandeau n'apparaît QUE si une installation directe est réellement possible
+   (événement beforeinstallprompt reçu — Chrome/Edge/Android). Sinon, rien. */
+function refreshBanner(){
+  const el=document.getElementById("installBanner");
+  if(!el) return;
+  const canInstall = !!deferredPrompt && !isStandalone() && !bannerDismissed;
+  if(!canInstall){ el.classList.remove("show"); el.innerHTML=""; return; }
+  el.innerHTML=`<div class="banner">
+    <span class="banner-icon"><img src="icons/icon-192.png" alt=""/></span>
+    <span class="banner-text">
+      <span class="banner-title">Installer l'application</span>
+      <span class="banner-sub">Plein écran et hors-ligne, sur ton écran d'accueil.</span>
+    </span>
+    <button class="banner-go" data-binstall="go">Installer</button>
+    <button class="banner-x" data-binstall="x" aria-label="Masquer">×</button>
   </div>`;
-  back.addEventListener("click", e=>{ if(e.target===back || e.target.getAttribute("data-act-close")) closeInstallHelp(); });
-  document.body.appendChild(back);
+  el.classList.add("show");
+  el.querySelector('[data-binstall="go"]').addEventListener("click", runInstall);
+  el.querySelector('[data-binstall="x"]').addEventListener("click", ()=>{ bannerDismissed=true; refreshBanner(); });
 }
+
+async function runInstall(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  try{ await deferredPrompt.userChoice; }catch(e){}
+  deferredPrompt=null;
+  refreshBanner();
+}
+
+window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredPrompt=e; refreshBanner(); });
+window.addEventListener("appinstalled", ()=>{ deferredPrompt=null; refreshBanner(); });
 
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
@@ -585,6 +573,7 @@ if("serviceWorker" in navigator){
 applyTheme();
 renderNav();
 renderMain();
+refreshBanner();
 </script>
 </body>
 </html>
