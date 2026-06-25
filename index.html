@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#14161d" />
 <meta name="description" content="Suivi quotidien, citation du jour, exercices et journal stoïcien." />
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="icon" href="icons/favicon-64.png" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="icon" href="favicon-64.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Stoïcien" />
@@ -541,7 +541,7 @@ function refreshBanner(){
   const canInstall = !!deferredPrompt && !isStandalone() && !bannerDismissed;
   if(!canInstall){ el.classList.remove("show"); el.innerHTML=""; return; }
   el.innerHTML=`<div class="banner">
-    <span class="banner-icon"><img src="icons/icon-192.png" alt=""/></span>
+    <span class="banner-icon"><img src="icon-192.png" alt=""/></span>
     <span class="banner-text">
       <span class="banner-title">Installer l'application</span>
       <span class="banner-sub">Plein écran et hors-ligne, sur ton écran d'accueil.</span>
